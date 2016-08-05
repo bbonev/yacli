@@ -1,0 +1,7 @@
+.git
+*.o
+yaclitest
+yaclitest.shared
+libyacli.so.*
+bin
+obj
