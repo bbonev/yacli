@@ -29,11 +29,17 @@ SOVERF:=0.0.0
 
 ifeq ($(lastword $(subst /, ,$(CC))),tcc)
 CCOPT:=-Wall $(DEBUG) -I.
+STLINK:=-L. -static -lyascreen
+DYLINK:=-L. -lyacli -lyascreen
 else
 ifeq ($(lastword $(subst /, ,$(CC))),clang)
 CCOPT:=-Wall $(DEBUG) -I. --std=gnu89
+STLINK:=-L. -Wl,-Bstatic -lyascreen -Wl,-Bdynamic
+DYLINK:=-L. -lyacli -lyascreen
 else
 CCOPT:=-Wall $(DEBUG) -I. --std=gnu89 -flto
+STLINK:=-L. -Wl,-Bstatic -lyascreen -Wl,-Bdynamic
+DYLINK:=-L. -lyacli -lyascreen
 endif
 endif
 
@@ -50,11 +56,11 @@ yaclitest.o: yaclitest.c yacli.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 yaclitest: yaclitest.o yacli.o
-	$(CC) $(CFLAGS) -o $@ $^ -lrt -Wl,-Bstatic -lyascreen -Wl,-Bdynamic
+	$(CC) $(CFLAGS) -o $@ $^ -lrt $(STLINK)
 	$(STRIP) $@
 
 yaclitest.shared: yaclitest.o libyacli.so
-	$(CC) $(CFLAGS) -o $@ $^ -lrt -L. -lyacli -lyascreen
+	$(CC) $(CFLAGS) -o $@ $< -lrt $(DYLINK)
 	$(STRIP) $@
 
 libyacli.a: yacli.o
