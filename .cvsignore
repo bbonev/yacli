@@ -2,6 +2,8 @@
 *.o
 yaclitest
 yaclitest.shared
+libyacli.a
+libyacli.so
 libyacli.so.*
 bin
 obj
