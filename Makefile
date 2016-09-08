@@ -43,6 +43,17 @@ DYLINK:=-L. -lyacli -lyascreen
 endif
 endif
 
+CP-A:=cp -a
+ifeq ($(shell uname -s),OpenBSD)
+ifeq ($(CC),cc)
+CC:=egcc
+endif
+AR=ar
+RANLIB=ranlib
+CCOPT:=-Wall $(DEBUG) -I. --std=gnu89
+CP-A:=cp -fp
+endif
+
 # allow to pass additional compiler flags
 
 CFLAGS:=$(CCOPT) $(CFLAGS)
@@ -56,11 +67,11 @@ yaclitest.o: yaclitest.c yacli.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 yaclitest: yaclitest.o yacli.o
-	$(CC) $(CFLAGS) -o $@ $^ -lrt $(STLINK)
+	$(CC) $(CFLAGS) -o $@ $^ $(STLINK)
 	$(STRIP) $@
 
 yaclitest.shared: yaclitest.o libyacli.so
-	$(CC) $(CFLAGS) -o $@ $< -lrt $(DYLINK)
+	$(CC) $(CFLAGS) -o $@ $< $(DYLINK)
 	$(STRIP) $@
 
 libyacli.a: yacli.o
@@ -74,12 +85,12 @@ libyacli.so.$(SOVERM): libyacli.so.$(SOVERF)
 	ln -sf $^ $@
 
 libyacli.so.$(SOVERF): yacli.c yacli.h
-	$(CC) $(CFLAGS) -o $@ $< -fPIC -lrt -shared
+	$(CC) $(CFLAGS) -o $@ $< -fPIC -shared
 	$(STRIP) $@
 
 install: all
-	cp -a libyacli.a libyacli.so libyacli.so.$(SOVERM) libyacli.so.$(SOVERF) $(PREFIX)/lib/
-	cp -a yacli.h $(PREFIX)/include/
+	$(CP-A) libyacli.a libyacli.so libyacli.so.$(SOVERM) libyacli.so.$(SOVERF) $(PREFIX)/lib/
+	$(CP-A) yacli.h $(PREFIX)/include/
 
 clean:
 	rm -f yaclitest yaclitest.shared yaclitest.o yacli.o libyacli.a libyacli.so libyacli.so.$(SOVERM) libyacli.so.$(SOVERF)

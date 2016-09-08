@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 3.87 2016/08/05 05:39:06 bbonev Exp $
+// $Id: yacli.c,v 3.88 2016/09/07 05:50:45 bbonev Exp $
 
 // {{{ includes
 
@@ -177,7 +177,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.87 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.88 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -553,7 +553,7 @@ static inline void yacli_filter_done_count(filter_inst *fltr) { // {{{
 	if (!fltr->next->fltr->done)
 		return;
 
-	sprintf(s,"Line count: %ld\n",fltr->private[0]);
+	snprintf(s,sizeof s,"Line count: %ld\n",fltr->private[0]);
 
 	fltr->next->fltr->feed(fltr->next,s,strlen(s));
 	fltr->next->fltr->done(fltr->next);
@@ -582,7 +582,7 @@ inline yacli *yacli_init(yascreen *s) { // {{{
 			vermaj+=vermin/100;
 			vermin=vermin%100;
 			memmove(myver,myver+1,strlen(myver+1)+1);
-			sprintf(rev-1,"%d.%d\n\n",vermaj,vermin);
+			snprintf(rev-1,sizeof myver-(rev-1-myver),"%d.%d\n\n",vermaj,vermin);
 		}
 	}
 
@@ -1329,7 +1329,7 @@ static inline void yacli_setbuf(yacli *cli,const char *buf) { // {{{
 	if (yacli_buf_inc(&cli->buffer,&cli->bufsiz,&cli->buflen,add)) // error in malloc
 		return;
 
-	strcpy(cli->buffer,buf);
+	strncpy(cli->buffer,buf,cli->bufsiz);
 	cli->buflen=len;
 	cli->cursor=len;
 	cli->redraw=1;
@@ -1496,13 +1496,14 @@ static inline void yacli_add_search(yacli *cli,unsigned char ch) { // {{{
 		cli->sbuf[0]=0;
 	} else {
 		char *t=cli->sbuf;
+		size_t sz=strlen(t)+2;
 
-		cli->sbuf=malloc(strlen(t)+2);
+		cli->sbuf=malloc(sz);
 		if (!cli->sbuf) {
 			cli->sbuf=t;
 			return;
 		}
-		strcpy(cli->sbuf,t);
+		strncpy(cli->sbuf,t,sz);
 		free(t);
 	}
 	l=strlen(cli->sbuf);

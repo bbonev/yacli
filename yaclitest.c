@@ -105,7 +105,7 @@ static void list_cb(yacli *cli,void *ctx,int code) {
 		case 1: // list ips
 			for (j=0;j<5;j++)
 				for (i=1;i<3;i++) {
-					sprintf(s,"10.10.%d.%d",j,i);
+					snprintf(s,sizeof s,"10.10.%d.%d",j,i);
 					yacli_list(cli,ctx,s);
 				}
 			yacli_list(cli,ctx,"10.10.23.4");
