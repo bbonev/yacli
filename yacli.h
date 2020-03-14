@@ -1,4 +1,4 @@
-// $Id: yacli.h,v 1.22 2016/08/05 05:39:07 bbonev Exp $
+// $Id: yacli.h,v 1.25 2020/03/13 12:20:29 bbonev Exp $
 
 #ifndef ___YACLI_H___
 #define ___YACLI_H___
@@ -69,6 +69,15 @@ inline void *yacli_add_cmd(yacli *cli,void *parent,const char *cmd,const char *h
 inline void yacli_list(yacli *cli,void *ctx,const char *item);
 // set list callback function
 inline void yacli_set_list_cb(yacli *cli,void (*list_cb)(yacli *cli,void *ctx,int code));
+// set command callback function
+inline void yacli_set_cmd_cb(yacli *cli,void (*cmd_cb)(yacli *cli,const char *cmd,int code));
+// enter submode with shortname (all commands for the submode should be added after this call)
+inline void yacli_enter_mode(yacli *cli,const char *mode,void *hint);
+// exit submode (submode commands are deleted)
+inline void yacli_exit_mode(yacli *cli);
+// get/set user hint for the current mode
+inline void yacli_set_mode_hint_p(yacli *cli,void *hint);
+inline void *yacli_get_mode_hint_p(yacli *cli);
 
 // cleanup and free cli data
 inline void yacli_free(yacli *cli);

@@ -1,8 +1,10 @@
-// $Id: yacli.c,v 3.88 2016/09/07 05:50:45 bbonev Exp $
+// $Id: yacli.c,v 3.94 2020/03/13 23:40:55 bbonev Exp $
 
 // {{{ includes
 
 #define _GNU_SOURCE
+#define _DEFAULT_SOURCE
+#include <features.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -44,6 +46,14 @@ typedef struct _cmnode {
 	uint8_t isdyn:1; // command is dynamically generated; help and cb are in parent
 } cmnode;
 
+typedef struct _cmstack {
+	struct _cmstack *next;
+	struct _cmstack *prev;
+	cmnode *cmdt; // previous command tree
+	char *mode; // current mode short name
+	void *hint; // user hint for the current mode
+} cmstack;
+
 typedef struct _history {
 	struct _history *next; // next item in command history
 	struct _history *prev; // previous item in command history
@@ -72,8 +82,6 @@ typedef struct _filter {
 
 struct _yacli {
 	char *hostname; // hostname, used in prompt
-	char *mode1; // first mode
-	char *mode2; // inner mode
 	char *level; // access level (#/$/>)
 	char *banner; // login banner
 	char *buffer; // current command buffer
@@ -85,6 +93,8 @@ struct _yacli {
 	char **parsedcmd; // command split into words (main style)
 	void *phint; // user defined hint (pointer)
 	cmnode *cmdt; // command tree
+	cmstack *cstack; // command stack with modes
+	char *modes; // all modes from stack
 	filter noopf; // noop passthrough filter
 	filter_inst noopi; // noop filter instance
 	filter *flts; // sorted defined filter list
@@ -92,6 +102,7 @@ struct _yacli {
 	history *hist; // command history (double linked)
 	history *hist_p; // pointer in history, NULL when not in history
 	yascreen *s; // screen used to render output
+	void (*cmdcb)(yacli *cli,const char *cmd,int code); // callback for each executed command
 	void (*listcb)(yacli *cli,void *ctx,int code); // callback for getting dynamic list items
 	void (*parsedcb)(yacli *cli,int ac,char **cmd); // user callback for matching command
 	yacli_in_state state; // input bytestream DFA state
@@ -111,6 +122,7 @@ struct _yacli {
 	uint8_t more:1; // enable paged output
 	uint8_t redraw:1; // prompt needs redraw
 	uint8_t wastab:1; // control for double tab
+	uint8_t incmdcb:1; // flag when we are inside command callback
 	uint8_t istelnet:1; // use telnet IAC codes
 	uint8_t buffered:1; // buffered mode for more
 	uint8_t showtsize:1; // show terminal size on change
@@ -177,7 +189,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.88 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.94 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -589,8 +601,8 @@ inline yacli *yacli_init(yascreen *s) { // {{{
 	cli->hostname=strdup("none");
 	if (!cli->hostname)
 		goto allocerror;
-	cli->mode1=NULL;
-	cli->mode2=NULL;
+	cli->cstack=NULL;
+	cli->modes=NULL;
 	cli->moreprompt=strdup("<<< more >>> [ enter=line | space=page | c=continue | q=quit ] <<< more >>>");
 	if (!cli->moreprompt)
 		goto allocerror;
@@ -907,12 +919,10 @@ static inline int yacli_promptlen(yacli *cli) { // {{{
 	if (!cli)
 		return 0;
 
-	// "hostname(mode1-mode2)# "
+	// "hostname(mode1-mode2-mode3)# "
 	promptlen=strlen(cli->hostname);
-	if (cli->mode1)
-		promptlen+=2+strlen(cli->mode1);
-	if (cli->mode1&&cli->mode2)
-		promptlen+=1+strlen(cli->mode2);
+	if (cli->modes&&strlen(cli->modes))
+		promptlen+=strlen(cli->modes); // includes opening and closing braces
 	promptlen+=1+strlen(cli->level);
 	return promptlen;
 } // }}}
@@ -1066,12 +1076,7 @@ static inline void yacli_prompt(yacli *cli) { // {{{
 	curpos=cli->cursor-cli->bufpos; // zero based in buffer
 	curpos+=promptlen;
 
-	if (cli->mode1&&cli->mode2)
-		yascreen_print(cli->s,"%s\r%s(%s-%s)%s%c%.*s%s\r\e[%dC",yascreen_clearln_s(cli->s),cli->hostname,cli->mode1,cli->mode2,cli->level,begc,linelen,cli->buffer+cli->bufpos,endc,curpos);
-	if (cli->mode1&&!cli->mode2)
-		yascreen_print(cli->s,"%s\r%s(%s)%s%c%.*s%s\r\e[%dC",yascreen_clearln_s(cli->s),cli->hostname,cli->mode1,cli->level,begc,linelen,cli->buffer+cli->bufpos,endc,curpos);
-	if (!cli->mode1&&!cli->mode2)
-		yascreen_print(cli->s,"%s\r%s%s%c%.*s%s\r\e[%dC",yascreen_clearln_s(cli->s),cli->hostname,cli->level,begc,linelen,cli->buffer+cli->bufpos,endc,curpos);
+	yascreen_print(cli->s,"%s\r%s%s%s%c%.*s%s\r\e[%dC",yascreen_clearln_s(cli->s),cli->hostname,cli->modes?cli->modes:"",cli->level,begc,linelen,cli->buffer+cli->bufpos,endc,curpos);
 	cli->redraw=0;
 } // }}}
 
@@ -1083,7 +1088,8 @@ inline void yacli_message(yacli *cli,const char *line) { // {{{
 	if (!line)
 		return;
 
-	yascreen_print(cli->s,"%s\r",yascreen_clearln_s(cli->s)); // clear prompt line
+	if (!cli->incmdcb)
+		yascreen_print(cli->s,"%s\r",yascreen_clearln_s(cli->s)); // clear prompt line
 	p=line;
 	while (*p) {
 		q=p;
@@ -1099,7 +1105,8 @@ inline void yacli_message(yacli *cli,const char *line) { // {{{
 			p=q;
 		}
 	}
-	yacli_prompt(cli);
+	if (!cli->incmdcb)
+		yacli_prompt(cli);
 } // }}}
 
 static inline void yacli_eof(yacli *cli) { // {{{
@@ -1624,6 +1631,12 @@ inline void yacli_set_list_cb(yacli *cli,void (*listcb)(yacli *cli,void *ctx,int
 	if (!cli)
 		return;
 	cli->listcb=listcb;
+} // }}}
+
+inline void yacli_set_cmd_cb(yacli *cli,void (*cmdcb)(yacli *cli,const char *cmd,int code)) { // {{{
+	if (!cli)
+		return;
+	cli->cmdcb=cmdcb;
 } // }}}
 
 static inline void yacli_cmd_free(cmnode *cn) { // {{{
@@ -2315,6 +2328,7 @@ donewithfilters:
 	// bit 0: last word was complete and executable
 	// bit 1: last word was complete
 	// bit 2: command is executable, but next is exact match and there is no space after it
+	// bit 7: used internally to redraw prompt after enter on empty line
 	// bit 8: (set above) no matched command
 	return (!!completex)|((!!complete)<<1)|((!!canexalone<<2));
 } // }}}
@@ -2325,6 +2339,12 @@ static inline void yacli_enter(yacli *cli) { // {{{
 	if (!cli)
 		return;
 
+	// cmdok value:
+	// bit 0: last word was complete and executable
+	// bit 1: last word was complete
+	// bit 2: command is executable, but next is exact match and there is no space after it
+	// bit 7: used internally to redraw prompt after enter on empty line
+	// bit 8: (set above) no matched command
 	cmdok=yacli_trycomplete(cli,2);
 	yacli_prompt(cli);
 	yacli_buf_zeroterm(cli);
@@ -2332,6 +2352,8 @@ static inline void yacli_enter(yacli *cli) { // {{{
 	if (!cli->buflen) // allow pumping enter to reprint prompt
 		cmdok=0x40;
 	cli->retcode=YACLI_ERROR;
+	if (cli->cmdcb)
+		cli->cmdcb(cli,cli->buffer,cmdok>=3&&cmdok<=7);
 	switch (cmdok) {
 		case 0:
 		case 1:
@@ -2348,8 +2370,11 @@ static inline void yacli_enter(yacli *cli) { // {{{
 			// fcmd should be populated by yacli_trycomplete
 			if (!cli->parsedcb)
 				yacli_print_nof(cli,"BUG: callback is NULL for valid command?!\n");
-			else
+			else {
+				cli->incmdcb=1;
 				cli->parsedcb(cli,cli->parsedcnt,cli->parsedcmd);
+				cli->incmdcb=0;
+			}
 			yacli_free_fcmd(cli); // call done to flush the chain, then free chained filters
 			break;
 		case 0x40:
@@ -2825,5 +2850,107 @@ inline void yacli_list(yacli *cli,void *ctx,const char *item) { // {{{
 	t->next=*place;
 	t->isdyn=1;
 	*place=t;
+} // }}}
+
+static inline void yacli_gen_modes(yacli *cli) { // {{{
+	int modelen=0;
+	cmstack *s,*l;
+	int first=1;
+
+	if (!cli)
+		return;
+
+	if (!cli->cstack) { // top mode
+		if (cli->modes)
+			free(cli->modes);
+		cli->modes=NULL;
+		return;
+	}
+
+	// calculate len
+	s=cli->cstack;
+	while (s) {
+		modelen+=1+strlen(s->mode); // open brace or dash+mode len
+		if (!s->next) // keep last element for reverse walk
+			l=s;
+		s=s->next;
+	}
+	if (cli->cstack) // closing brace
+		modelen++;
+
+	if (cli->modes)
+		free(cli->modes);
+	cli->modes=calloc(modelen+1,1);
+	if (!cli->modes) // crit - no memory
+		return;
+
+	while (l) {
+		sprintf(cli->modes+strlen(cli->modes),"%c%s",first?'(':'-',l->mode);
+		l=l->prev;
+		first=0;
+	}
+	strcat(cli->modes,")");
+} // }}}
+
+inline void yacli_enter_mode(yacli *cli,const char *mode,void *hint) { // {{{
+	cmstack *s;
+
+	if (!cli)
+		return;
+
+	s=calloc(1,sizeof *s);
+	if (!s) // crit err - no memory
+		return;
+
+	s->next=cli->cstack;
+	if (s->next)
+		s->next->prev=s;
+	s->mode=strdup(mode);
+	s->cmdt=cli->cmdt;
+	s->hint=hint;
+	cli->cmdt=NULL;
+	cli->cstack=s;
+	yacli_gen_modes(cli);
+} // }}}
+
+inline void yacli_exit_mode(yacli *cli) { // {{{
+	cmstack *s;
+	cmnode *n;
+
+	if (!cli)
+		return;
+
+	if (!cli->cstack) // top mode, nothing to do
+		return;
+
+	s=cli->cstack;
+	n=cli->cmdt;
+
+	cli->cmdt=cli->cstack->cmdt; // restore commands
+	cli->cstack=cli->cstack->next; // pop top items from mode stack
+	if (cli->cstack)
+		cli->cstack->prev=NULL;
+
+	yacli_gen_modes(cli);
+	if (s->mode)
+		free(s->mode);
+	free(s);
+	yacli_cmd_free(n);
+} // }}}
+
+inline void yacli_set_mode_hint_p(yacli *cli,void *hint) { // {{{
+	if (!cli)
+		return;
+	if (!cli->cstack)
+		return;
+	cli->cstack->hint=hint;
+} // }}}
+
+inline void *yacli_get_mode_hint_p(yacli *cli) { // {{{
+	if (!cli)
+		return NULL;
+	if (!cli->cstack)
+		return NULL;
+	return cli->cstack->hint;
 } // }}}
 
