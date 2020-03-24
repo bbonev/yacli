@@ -1,9 +1,14 @@
-// $Id: yacli.c,v 3.94 2020/03/13 23:40:55 bbonev Exp $
+// $Id: yacli.c,v 3.96 2020/03/15 02:47:10 bbonev Exp $
 
 // {{{ includes
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+#ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
+#endif
+
 #include <features.h>
 
 #include <ctype.h>
@@ -129,6 +134,8 @@ struct _yacli {
 	uint8_t clearmorep:1; // clear more prompt after page
 	uint8_t clearmorel:1; // clear more prompt after line
 	uint8_t clearmoreq:1; // clear more prompt after quit
+	uint8_t handlectrlz:1; // process ctrl-z shortcut
+	uint8_t ctrlzexeccmd:1; // when ctrl-z is hit, execute command in buffer
 };
 
 typedef enum {
@@ -189,7 +196,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.94 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.96 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -642,6 +649,8 @@ inline yacli *yacli_init(yascreen *s) { // {{{
 	cli->parsedcmd=NULL;
 	cli->parsedcnt=0;
 	cli->parsedsiz=0;
+	cli->handlectrlz=0;
+	cli->ctrlzexeccmd=1;
 
 	cli->noopf.next=NULL;
 	cli->noopf.cli=cli;
@@ -760,7 +769,19 @@ static inline void yacli_add_parsed(yacli *cli,const char *word) { // {{{
 inline void yacli_set_more(yacli *cli,int on) { // {{{
 	if (!cli)
 		return;
-	cli->more=on;
+	cli->more=!!on;
+} // }}}
+
+inline void yacli_set_ctrlz(yacli *cli,int on) { // {{{
+	if (!cli)
+		return;
+	cli->handlectrlz=!!on;
+} // }}}
+
+inline void yacli_set_ctrlz_exec(yacli *cli,int on) { // {{{
+	if (!cli)
+		return;
+	cli->ctrlzexeccmd=!!on;
 } // }}}
 
 inline void yacli_set_banner(yacli *cli,const char *banner) { // {{{
@@ -2461,6 +2482,32 @@ static inline void yacli_more_continue(yacli *cli) { // {{{
 	yacli_more_end(cli,MORE_QUIT);
 } // }}}
 
+static inline void yacli_ctrl_z(yacli *cli) { // {{{
+	if (!cli)
+		return;
+
+	if (!cli->handlectrlz)
+		return;
+
+	yascreen_puts(cli->s,"^Z\r\n");
+	if (cli->ctrlzexeccmd)
+		yacli_enter(cli);
+	else // zero command buffer
+		yacli_delall(cli);
+
+	while (cli->cstack)
+		yacli_exit_mode(cli);
+
+	if (!cli->ctrlzexeccmd) // yascli_enter already did redraw
+		cli->redraw=1;
+
+	if (cli->savbuf) { // kill last saved command
+		free(cli->savbuf);
+		cli->savbuf=NULL;
+	}
+	cli->hist_p=NULL; // reset history position
+} // }}}
+
 inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 	more_type mt=MORE_QUIT;
 	int enterinsearch=0;
@@ -2627,6 +2674,9 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 					break;
 				case YAS_K_C_X:
 					cli->state=IN_C_X;
+					break;
+				case YAS_K_C_Z:
+					yacli_ctrl_z(cli);
 					break;
 				case YAS_K_ESC:
 					break;

@@ -242,8 +242,8 @@ int main(void) {
 	for (;;) {
 		time_t now=time(NULL);
 		struct timeval sto;
+		fd_set rfd={0};
 		yacli_loop rc;
-		fd_set rfd;
 		int key;
 
 		if (winch) {
