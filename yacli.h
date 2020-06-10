@@ -1,4 +1,4 @@
-// $Id: yacli.h,v 1.27 2020/03/15 02:45:13 bbonev Exp $
+// $Id: yacli.h,v 1.28 2020/06/08 03:48:30 bbonev Exp $
 
 #ifndef ___YACLI_H___
 #define ___YACLI_H___
@@ -81,6 +81,9 @@ inline void yacli_exit_mode(yacli *cli);
 // get/set user hint for the current mode
 inline void yacli_set_mode_hint_p(yacli *cli,void *hint);
 inline void *yacli_get_mode_hint_p(yacli *cli);
+
+// get current buffer contents
+inline const char *yacli_buf_get(yacli *cli);
 
 // cleanup and free cli data
 inline void yacli_free(yacli *cli);

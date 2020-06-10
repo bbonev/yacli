@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 3.96 2020/03/15 02:47:10 bbonev Exp $
+// $Id: yacli.c,v 3.97 2020/06/08 03:48:30 bbonev Exp $
 
 // {{{ includes
 
@@ -196,7 +196,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.96 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.97 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -3002,5 +3002,10 @@ inline void *yacli_get_mode_hint_p(yacli *cli) { // {{{
 	if (!cli->cstack)
 		return NULL;
 	return cli->cstack->hint;
+} // }}}
+
+inline const char *yacli_buf_get(yacli *cli) { // {{{
+	yacli_buf_zeroterm(cli); // zero terminate the buffer
+	return cli->buffer;
 } // }}}
 
