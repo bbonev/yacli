@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 3.97 2020/06/08 03:48:30 bbonev Exp $
+// $Id: yacli.c,v 3.98 2020/06/18 22:42:38 bbonev Exp $
 
 // {{{ includes
 
@@ -131,8 +131,9 @@ struct _yacli {
 	uint8_t istelnet:1; // use telnet IAC codes
 	uint8_t buffered:1; // buffered mode for more
 	uint8_t showtsize:1; // show terminal size on change
-	uint8_t clearmorep:1; // clear more prompt after page
 	uint8_t clearmorel:1; // clear more prompt after line
+	uint8_t clearmorep:1; // clear more prompt after page
+	uint8_t clearmorec:1; // clear more prompt after cont
 	uint8_t clearmoreq:1; // clear more prompt after quit
 	uint8_t handlectrlz:1; // process ctrl-z shortcut
 	uint8_t ctrlzexeccmd:1; // when ctrl-z is hit, execute command in buffer
@@ -142,6 +143,7 @@ typedef enum {
 	MORE_PAGE,
 	MORE_LINE,
 	MORE_QUIT,
+	MORE_CONT,
 	MORE_CTRC,
 	MORE_NONE,
 } more_type;
@@ -196,7 +198,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.97 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.98 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -643,8 +645,9 @@ inline yacli *yacli_init(yascreen *s) { // {{{
 	cli->morelen=0;
 	cli->moresiz=0;
 	cli->more=1; // use paged output by default
-	cli->clearmorel=1;
-	cli->clearmoreq=1;
+	cli->clearmorel=1; // remove more prompt when showing next line
+	cli->clearmoreq=0; // leave more prompt when quit is pressed
+	cli->clearmorec=1; // remove more prompt when continue to end of output
 	cli->clearmorep=0; // leave more prompt only after whole page for clarity
 	cli->parsedcmd=NULL;
 	cli->parsedcnt=0;
@@ -772,6 +775,15 @@ inline void yacli_set_more(yacli *cli,int on) { // {{{
 	cli->more=!!on;
 } // }}}
 
+inline void yacli_set_more_clear(yacli *cli,int ln,int pg,int co,int qu) { // {{{
+	if (!cli)
+		return;
+	cli->clearmorel=!!ln;
+	cli->clearmorep=!!pg;
+	cli->clearmorec=!!co;
+	cli->clearmoreq=!!qu;
+} // }}}
+
 inline void yacli_set_ctrlz(yacli *cli,int on) { // {{{
 	if (!cli)
 		return;
@@ -861,10 +873,17 @@ static inline void yacli_more_clear_prompt(yacli *cli,more_type t) { // {{{
 				yascreen_clearln(cli->s);
 				yascreen_puts(cli->s,"\r"); // clear more prompt
 			} else
+				yascreen_puts(cli->s," quit\r\n"); // print the reason and go next line
+			break;
+		case MORE_CONT:
+			if (cli->clearmorec) {
+				yascreen_clearln(cli->s);
+				yascreen_puts(cli->s,"\r"); // clear more prompt
+			} else
 				yascreen_puts(cli->s,"\r\n"); // go next line
 			break;
 		case MORE_CTRC:
-			yascreen_puts(cli->s,"^C\r\n"); // clear more prompt
+			yascreen_puts(cli->s," ^C\r\n"); // print the reason and go next line
 			break;
 		case MORE_NONE:
 			break;
@@ -2462,7 +2481,7 @@ static inline void yacli_more_page(yacli *cli) { // {{{
 			memmove(cli->morebuf,cli->morebuf+i+1,cli->morelen-i-1);
 			cli->morelen-=i+1;
 			if (!cli->morelen) {
-				yacli_more_end(cli,MORE_QUIT);
+				yacli_more_end(cli,MORE_NONE);
 				return;
 			}
 			cli->redraw=1;
@@ -2470,16 +2489,16 @@ static inline void yacli_more_page(yacli *cli) { // {{{
 		}
 	}
 	yascreen_write(cli->s,cli->morebuf,cli->morelen);
-	yacli_more_end(cli,MORE_QUIT);
+	yacli_more_end(cli,MORE_NONE);
 } // }}}
 
 static inline void yacli_more_continue(yacli *cli) { // {{{
 	if (!cli)
 		return;
 
-	yacli_more_clear_prompt(cli,MORE_PAGE); // clear more prompt
+	yacli_more_clear_prompt(cli,MORE_CONT); // clear more prompt
 	yascreen_write(cli->s,cli->morebuf,cli->morelen);
-	yacli_more_end(cli,MORE_QUIT);
+	yacli_more_end(cli,MORE_NONE);
 } // }}}
 
 static inline void yacli_ctrl_z(yacli *cli) { // {{{
@@ -2509,7 +2528,6 @@ static inline void yacli_ctrl_z(yacli *cli) { // {{{
 } // }}}
 
 inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
-	more_type mt=MORE_QUIT;
 	int enterinsearch=0;
 	yacli_in_state os;
 
@@ -2522,10 +2540,11 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 		case IN_MORE:
 			switch (key) {
 				case YAS_K_C_C: // ^C
-					mt=MORE_CTRC;
+					yacli_more_end(cli,MORE_CTRC);
+					break;
 				case 'q':
 				case 'Q': // discard the rest of the output
-					yacli_more_end(cli,mt);
+					yacli_more_end(cli,MORE_QUIT);
 					break;
 				case ' ': // space - scroll whole page
 					yacli_more_page(cli);

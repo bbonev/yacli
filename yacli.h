@@ -1,4 +1,4 @@
-// $Id: yacli.h,v 1.28 2020/06/08 03:48:30 bbonev Exp $
+// $Id: yacli.h,v 1.29 2020/06/18 22:42:38 bbonev Exp $
 
 #ifndef ___YACLI_H___
 #define ___YACLI_H___
@@ -37,6 +37,8 @@ inline void yacli_set_showtermsize(yacli *cli,int v);
 inline void yacli_set_telnet(yacli *cli,int on);
 // enable more
 inline void yacli_set_more(yacli *cli,int on);
+// set more prompt behaviour after line/page/continue/quit/^C
+inline void yacli_set_more_clear(yacli *cli,int ln,int pg,int co,int qu);
 // enable ctrl-z handling (pops mode stack to top level)
 inline void yacli_set_ctrlz(yacli *cli,int on);
 inline void yacli_set_ctrlz_exec(yacli *cli,int on);
