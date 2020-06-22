@@ -1,4 +1,4 @@
-// $Id: yacli.h,v 1.29 2020/06/18 22:42:38 bbonev Exp $
+// $Id: yacli.h,v 1.30 2020/06/21 12:51:27 bbonev Exp $
 
 #ifndef ___YACLI_H___
 #define ___YACLI_H___
@@ -76,6 +76,8 @@ inline void yacli_list(yacli *cli,void *ctx,const char *item);
 inline void yacli_set_list_cb(yacli *cli,void (*list_cb)(yacli *cli,void *ctx,int code));
 // set command callback function
 inline void yacli_set_cmd_cb(yacli *cli,void (*cmd_cb)(yacli *cli,const char *cmd,int code));
+// set ctrl-z callback function
+inline void yacli_set_ctrlz_cb(yacli *cli,void (*ctrlzcb)(yacli *cli));
 // enter submode with shortname (all commands for the submode should be added after this call)
 inline void yacli_enter_mode(yacli *cli,const char *mode,void *hint);
 // exit submode (submode commands are deleted)

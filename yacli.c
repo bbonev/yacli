@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 3.98 2020/06/18 22:42:38 bbonev Exp $
+// $Id: yacli.c,v 3.99 2020/06/21 12:51:27 bbonev Exp $
 
 // {{{ includes
 
@@ -110,6 +110,7 @@ struct _yacli {
 	void (*cmdcb)(yacli *cli,const char *cmd,int code); // callback for each executed command
 	void (*listcb)(yacli *cli,void *ctx,int code); // callback for getting dynamic list items
 	void (*parsedcb)(yacli *cli,int ac,char **cmd); // user callback for matching command
+	void (*ctrlzcb)(yacli *cli); // user callback to notify ctrl-z
 	yacli_in_state state; // input bytestream DFA state
 	yacli_loop retcode; // bytestream feed return code
 	int hint; // user defined hint (scalar)
@@ -198,7 +199,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.98 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.99 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -1679,6 +1680,12 @@ inline void yacli_set_cmd_cb(yacli *cli,void (*cmdcb)(yacli *cli,const char *cmd
 	cli->cmdcb=cmdcb;
 } // }}}
 
+inline void yacli_set_ctrlz_cb(yacli *cli,void (*ctrlzcb)(yacli *cli)) { // {{{
+	if (!cli)
+		return;
+	cli->ctrlzcb=ctrlzcb;
+} // }}}
+
 static inline void yacli_cmd_free(cmnode *cn) { // {{{
 	cmnode *n,*c,*d;
 
@@ -2509,13 +2516,18 @@ static inline void yacli_ctrl_z(yacli *cli) { // {{{
 		return;
 
 	yascreen_puts(cli->s,"^Z\r\n");
+	if (cli->ctrlzcb)
+		cli->ctrlzcb(cli);
 	if (cli->ctrlzexeccmd)
 		yacli_enter(cli);
 	else // zero command buffer
 		yacli_delall(cli);
 
-	while (cli->cstack)
+	while (cli->cstack) {
+		if (cli->ctrlzcb)
+			cli->ctrlzcb(cli);
 		yacli_exit_mode(cli);
+	}
 
 	if (!cli->ctrlzexeccmd) // yascli_enter already did redraw
 		cli->redraw=1;
