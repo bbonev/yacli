@@ -1,4 +1,22 @@
-// $Id: yacli.c,v 3.99 2020/06/21 12:51:27 bbonev Exp $
+// $Id: yacli.c,v 4.0 2020/06/30 02:03:34 bbonev Exp $
+//
+// Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
+//
+// This file is part of yacli - yet another command line interface library.
+//
+// yacli is free software: you can redistribute it and/or mowdify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// yacli is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with yacli.  If not, see <http://www.gnu.org/licenses/>.
+// }}}
 
 // {{{ includes
 
@@ -9,17 +27,13 @@
 #define _DEFAULT_SOURCE
 #endif
 
-#include <features.h>
-
 #include <ctype.h>
-#include <errno.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <inttypes.h>
+#include <sys/types.h>
 
 #include <yacli.h>
 
@@ -114,7 +128,7 @@ struct _yacli {
 	yacli_in_state state; // input bytestream DFA state
 	yacli_loop retcode; // bytestream feed return code
 	int hint; // user defined hint (scalar)
-	int rpos; // matching command index (0=first matching, 1=previous, etc)
+	int rpos; // matching command index where (0=first matching, 1=previous, etc)
 	int sx,sy; // terminal size
 	int lines; // line count between prompts, used for pagination
 	int bufpos; // buffer left scroll position
@@ -199,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 3.99 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.0 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{

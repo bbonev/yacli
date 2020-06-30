@@ -1,4 +1,22 @@
-// $Id: yacli.h,v 1.30 2020/06/21 12:51:27 bbonev Exp $
+// $Id: yacli.h,v 1.31 2020/06/29 01:57:18 bbonev Exp $
+//
+// Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
+//
+// This file is part of yacli - yet another command line interface library.
+//
+// yacli is free software: you can redistribute it and/or mowdify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// yacli is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with yacli.  If not, see <http://www.gnu.org/licenses/>.
+// }}}
 
 #ifndef ___YACLI_H___
 #define ___YACLI_H___
