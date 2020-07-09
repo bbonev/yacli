@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 4.0 2020/06/30 02:03:34 bbonev Exp $
+// $Id: yacli.c,v 4.2 2020/07/09 00:03:15 bbonev Exp $
 //
 // Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
 //
@@ -213,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.0 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.2 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -249,7 +249,7 @@ static inline void yacli_wr_buf(yacli *cli,const char *data,size_t len) { // {{{
 	if (yacli_buf_inc(&cli->morebuf,&cli->moresiz,&cli->morelen,len)) // alloc error
 		return;
 
-	if (len<=0) // noop
+	if (len==0) // noop
 		return;
 
 	memcpy(cli->morebuf+cli->morelen,data,len);
@@ -257,7 +257,7 @@ static inline void yacli_wr_buf(yacli *cli,const char *data,size_t len) { // {{{
 } // }}}
 
 static inline int yacli_write_more(yacli *cli,const char *s,size_t len) { // {{{
-	int i;
+	size_t i;
 
 	if (!cli)
 		return -1;
@@ -296,7 +296,7 @@ static inline int yacli_write_more(yacli *cli,const char *s,size_t len) { // {{{
 } // }}}
 
 static inline int yacli_write_nof(yacli *cli,const char *s,size_t len) { // {{{
-	int i,j=0;
+	size_t i,j=0;
 
 	if (!cli)
 		return -1;
@@ -384,17 +384,17 @@ static inline void yacli_add_fcmd(yacli *cli,filter *fltr,char *params) { // {{{
 } // }}}
 
 static inline void yacli_free_fcmd(yacli *cli) { // {{{
-	filter_inst *t;
-
 	if (!cli)
 		return;
 
 	if (cli->fcmd&&cli->fcmd->fltr&&cli->fcmd->fltr->done)
 		cli->fcmd->fltr->done(cli->fcmd);
 	while (cli->fcmd) {
+		filter_inst *t;
+
 		t=cli->fcmd;
 		cli->fcmd=cli->fcmd->next;
-		if (t&&t!=&cli->noopi) {
+		if (t!=&cli->noopi) {
 			if (t->buf)
 				free(t->buf);
 			if (t->params)
@@ -618,7 +618,7 @@ inline yacli *yacli_init(yascreen *s) { // {{{
 			vermaj+=vermin/100;
 			vermin=vermin%100;
 			memmove(myver,myver+1,strlen(myver+1)+1);
-			snprintf(rev-1,sizeof myver-(rev-1-myver),"%d.%d\n\n",vermaj,vermin);
+			snprintf(rev-1,sizeof myver-(rev-1-myver),"%d.%02d\n\n",vermaj,vermin);
 		}
 	}
 
@@ -1471,7 +1471,6 @@ static inline void yacli_end_search(yacli *cli) { // {{{
 } // }}}
 
 static inline void yacli_find_first(yacli *cli,int skip) { // {{{
-	int rpos=0;
 	int sl;
 
 	if (!cli)
@@ -1481,6 +1480,7 @@ static inline void yacli_find_first(yacli *cli,int skip) { // {{{
 
 	cli->rcmd=NULL;
 	if (cli->hist) { // find most recent matching command
+		int rpos=0;
 		history *h;
 
 		h=cli->hist->prev;
@@ -1645,7 +1645,7 @@ static inline void yacli_clear(yacli *cli) { // {{{
 	cli->redraw=1;
 } // }}}
 
-static inline void debugstate(yacli_in_state os,yacli_in_state ns,unsigned char ch) { // {{{
+static inline void debugstate(yacli_in_state os __attribute__((unused)),yacli_in_state ns __attribute__((unused)),unsigned char ch __attribute__((unused))) { // {{{
 #if DEBUG
 	char *ostate="?";
 	char *nstate="?";
@@ -1842,10 +1842,10 @@ static inline void yacli_cmd_help_pr(yacli *cli,const char *cmd,const char *help
 		yacli_print(cli,"%-*sOutput filters\n",padto+2,"|");
 } // }}}
 
-static inline int yacli_cmd_help_len(const char *cmd,const char *help,int prcr) { // {{{
+static inline size_t yacli_cmd_help_len(const char *cmd,const char *help,int prcr) { // {{{
 	const char *pcmd=cmd[0]=='^'?help:cmd;
 	const char *pcr=cmd[0]&&prcr?" <cr>":(prcr?"<cr>":"");
-	int len=strlen(pcmd)+strlen(pcr);
+	size_t len=strlen(pcmd)+strlen(pcr);
 
 	return len;
 } // }}}
@@ -1870,7 +1870,7 @@ static inline void yacli_compact_spaces(yacli *cli) { // {{{
 			posd++;
 			poss=posd;
 		}
-		while (cli->buffer[poss]!=' '&&poss<cli->buflen) {
+		while (poss<cli->buflen&&cli->buffer[poss]!=' ') {
 			poss++;
 			posd++;
 		}
@@ -2006,7 +2006,7 @@ static inline int yacli_trycomplete(yacli *cli,int docomplete) { // {{{
 						if (dyn)
 							yacli_dyn_vacuum(cli->cmdt);
 						return 0x80;
-					} else if (isprefix&&!nxprefix) { // unfinished match
+					} else if (!nxprefix) { // isprefix; unfinished match
 						int pos=word-fb+added;
 						int len=strlen(word);
 						int add=strlen(cn->cmd)-len;
@@ -2043,17 +2043,17 @@ static inline int yacli_trycomplete(yacli *cli,int docomplete) { // {{{
 					} else { // try to do partial complete
 						cmnode *t=cn->next->next;
 						int cangrow=0;
-						int cnt=2; // we have 2 commands with common prefix
-						int i,j;
+						size_t cnt=2; // we have 2 commands with common prefix
+						size_t i,j;
 
 						complete=0; // last word was not complete
 						completex=0;
 						cli->parsedcb=NULL;
 
 						while (t) {
-							int isprefix=strncmp(word,t->cmd,strlen(word))==0&&strlen(word)<strlen(cn->cmd);
+							int lisprefix=strncmp(word,t->cmd,strlen(word))==0&&strlen(word)<strlen(cn->cmd);
 
-							if (isprefix)
+							if (lisprefix)
 								cnt++;
 							else
 								break;
@@ -2204,7 +2204,7 @@ static inline int yacli_trycomplete(yacli *cli,int docomplete) { // {{{
 					if (dyn)
 						yacli_dyn_vacuum(cli->cmdt);
 					return 0x80;
-				} else if (isprefix&&!nxprefix) { // unfinished match
+				} else if (!nxprefix) { // isprefix; unfinished match
 					int pos=word-fb+added;
 					int len=strlen(word);
 					int add=strlen(f->cmd)-len;
@@ -2225,13 +2225,13 @@ static inline int yacli_trycomplete(yacli *cli,int docomplete) { // {{{
 				} else { // try to do partial complete
 					filter *t=f->next->next;
 					int cangrow=0;
-					int cnt=2; // we have 2 commands with common prefix
-					int i,j;
+					size_t cnt=2; // we have 2 commands with common prefix
+					size_t i,j;
 
 					while (t) {
-						int isprefix=strncmp(word,t->cmd,strlen(word))==0&&strlen(word)<strlen(f->cmd);
+						int lisprefix=strncmp(word,t->cmd,strlen(word))==0&&strlen(word)<strlen(f->cmd);
 
-						if (isprefix)
+						if (lisprefix)
 							cnt++;
 						else
 							break;
@@ -2298,7 +2298,7 @@ donewithfilters:
 		yacli_print_nof(cli,"\n"); // keep prompt in place for reference
 		if (complete) { // print self (if cb) then walk children
 			if (lastcn) {
-				int maxcmdlen=0;
+				size_t maxcmdlen=0;
 				cmnode *p;
 
 				if (cn) // if we didn't hit leaf in tree, go one node up
@@ -2313,7 +2313,7 @@ donewithfilters:
 
 				// calculate max len of printed stuff
 				if (lastcn->isdyn?lastcn->parent->cb:lastcn->cb) // print self, if valid alone
-					maxcmdlen=mymax(maxcmdlen,strlen("<cr>"));
+					maxcmdlen=strlen("<cr>");
 				while (p) { // print children
 					maxcmdlen=mymax(maxcmdlen,yacli_cmd_help_len(p->cmd,p->help,!!p->cb));
 					p=p->next;
@@ -2331,7 +2331,7 @@ donewithfilters:
 				}
 			}
 		} else { // walk siblings
-			int maxcmdlen=0;
+			size_t maxcmdlen=0;
 			cmnode *p;
 
 			if (!lastword) { // list top level commands
@@ -2604,6 +2604,7 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 				case YAS_K_C_M: // enter - use and execute current command
 					if (cli->rcmd)
 						enterinsearch=1;
+					// fall through
 				case YAS_K_ESC:
 					yacli_end_search(cli);
 					if (enterinsearch)
@@ -2661,6 +2662,7 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 				cli->redraw=1;
 				break;
 			}
+			// fall through
 		case IN_NORM:
 			switch (key) {
 				case YAS_K_NUL: // 0x00
