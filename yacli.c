@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 4.2 2020/07/09 00:03:15 bbonev Exp $
+// $Id: yacli.c,v 4.3 2020/07/09 21:00:47 bbonev Exp $
 //
 // Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
 //
@@ -213,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.2 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.3 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -686,8 +686,8 @@ inline yacli *yacli_init(yascreen *s) { // {{{
 
 	yacli_add_fcmd_s(cli,&cli->noopi);
 
-	yacli_add_filter(cli,"include","Filter output that contains the paramter text",yacli_filter_feed_include,yacli_filter_done_include,1);
-	yacli_add_filter(cli,"exclude","Filter output that contains the paramter text",yacli_filter_feed_exclude,yacli_filter_done_exclude,1);
+	yacli_add_filter(cli,"include","Filter output that contains the parameter text",yacli_filter_feed_include,yacli_filter_done_include,1);
+	yacli_add_filter(cli,"exclude","Filter output that contains the parameter text",yacli_filter_feed_exclude,yacli_filter_done_exclude,1);
 	yacli_add_filter(cli,"count","Display output line count",yacli_filter_feed_count,yacli_filter_done_count,0);
 
 	return cli;
@@ -1253,7 +1253,7 @@ static inline void yacli_moveleftw(yacli *cli) { // {{{
 			while (cli->cursor&&cli->buffer[cli->cursor]!=' ')
 				cli->cursor--;
 			if (cli->buffer[cli->cursor]==' ')
-				cli->cursor++; // step right at the begining of the word
+				cli->cursor++; // step right at the beginning of the word
 		}
 		if (cli->cursor<cli->bufpos)
 			cli->bufpos=cli->cursor;
@@ -2278,7 +2278,7 @@ static inline int yacli_trycomplete(yacli *cli,int docomplete) { // {{{
 					}
 					if (cangrow&&strlen(word)+cangrow==strlen(f->cmd)) { // first is exact match
 						goto addfilter;
-					} else { // filter is ambiguos
+					} else { // filter is ambiguous
 						// with fixed filters this case will most probably not happen :)
 					}
 				}
