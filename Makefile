@@ -56,22 +56,23 @@ endif
 
 # allow to pass additional compiler flags
 
-CFLAGS:=$(CCOPT) $(CFLAGS)
+MYCFLAGS=$(DEBUG) $(CPPFLAGS) $(CFLAGS) $(CCOPT)
+MYLDFLAGS=$(LDFLAGS) $(LDOPT)
 
 all: libyacli.a libyacli.so yaclitest yaclitest.shared
 
 yacli.o: yacli.c yacli.h
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) $(MYCFLAGS) -o $@ -c $<
 
 yaclitest.o: yaclitest.c yacli.h
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) $(MYCFLAGS) -o $@ -c $<
 
 yaclitest: yaclitest.o yacli.o
-	$(CC) $(CFLAGS) -o $@ $^ $(STLINK)
+	$(CC) $(MYCFLAGS) -o $@ $^ $(STLINK)
 	$(STRIP) $@
 
 yaclitest.shared: yaclitest.o libyacli.so
-	$(CC) $(CFLAGS) -o $@ $< $(DYLINK)
+	$(CC) $(MYCFLAGS) -o $@ $< $(DYLINK)
 	$(STRIP) $@
 
 libyacli.a: yacli.o
@@ -85,7 +86,7 @@ libyacli.so.$(SOVERM): libyacli.so.$(SOVERF)
 	ln -sf $^ $@
 
 libyacli.so.$(SOVERF): yacli.c yacli.h
-	$(CC) $(CFLAGS) -o $@ $< -fPIC -shared -Wl,--version-script,yacli.vers -lyascreen
+	$(CC) $(MYCFLAGS) -o $@ $< -fPIC -shared -Wl,--version-script,yacli.vers $(MYLDFLAGS) -lyascreen
 	$(STRIP) $@
 
 install: all
