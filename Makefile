@@ -34,11 +34,11 @@ DYLINK:=-L. -lyacli -lyascreen
 else
 ifeq ($(lastword $(subst /, ,$(CC))),clang)
 CCOPT:=-Wall $(DEBUG) -I. --std=gnu89
-STLINK:=-L. -Wl,-Bstatic -lyascreen -Wl,-Bdynamic
+STLINK:=-L. -lyascreen
 DYLINK:=-L. -lyacli -lyascreen
 else
 CCOPT:=-Wall $(DEBUG) -I. --std=gnu89 -flto
-STLINK:=-L. -Wl,-Bstatic -lyascreen -Wl,-Bdynamic
+STLINK:=-L. -lyascreen
 DYLINK:=-L. -lyacli -lyascreen
 endif
 endif
@@ -85,7 +85,7 @@ libyacli.so.$(SOVERM): libyacli.so.$(SOVERF)
 	ln -sf $^ $@
 
 libyacli.so.$(SOVERF): yacli.c yacli.h
-	$(CC) $(CFLAGS) -o $@ $< -fPIC -shared
+	$(CC) $(CFLAGS) -o $@ $< -fPIC -shared -Wl,--version-script,yacli.vers -lyascreen
 	$(STRIP) $@
 
 install: all

@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 4.3 2020/07/09 21:00:47 bbonev Exp $
+// $Id: yacli.c,v 4.4 2020/09/30 23:11:45 bbonev Exp $
 //
 // Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
 //
@@ -118,8 +118,8 @@ struct _yacli {
 	filter_inst noopi; // noop filter instance
 	filter *flts; // sorted defined filter list
 	filter_inst *fcmd; // applied filters for current command
-	history *hist; // command history (double linked)
-	history *hist_p; // pointer in history, NULL when not in history
+	history *hst; // command history (double linked)
+	history *hst_p; // pointer in history, NULL when not in history
 	yascreen *s; // screen used to render output
 	void (*cmdcb)(yacli *cli,const char *cmd,int code); // callback for each executed command
 	void (*listcb)(yacli *cli,void *ctx,int code); // callback for getting dynamic list items
@@ -213,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.3 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.4 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -608,6 +608,8 @@ inline yacli *yacli_init(yascreen *s) { // {{{
 	}
 
 	cli->s=s;
+	// we use explicit flush, tell yascreen not to do it
+	yascreen_line_flush(cli->s,0);
 
 	if (myver[0]==0) { // reformat the static version string
 		char *rev=strstr(myver+1,"$Revision: ");
@@ -862,6 +864,7 @@ static inline void yacli_more_prompt(yacli *cli) { // {{{
 	yascreen_clearln(cli->s);
 	yascreen_puts(cli->s,"\r");
 	yascreen_puts(cli->s,cli->moreprompt);
+	yascreen_write(cli->s,"",0);
 } // }}}
 
 static inline void yacli_more_clear_prompt(yacli *cli,more_type t) { // {{{
@@ -903,6 +906,7 @@ static inline void yacli_more_clear_prompt(yacli *cli,more_type t) { // {{{
 		case MORE_NONE:
 			break;
 	}
+	yascreen_write(cli->s,"",0);
 } // }}}
 
 static inline int yacli_print_nof(yacli *cli,const char *format,...) { // {{{
@@ -1101,6 +1105,7 @@ static inline void yacli_search_prompt(yacli *cli) { // {{{
 	char *rcmd=cli->rcmd?cli->rcmd:"";
 
 	yascreen_print(cli->s,"%s\r(i-search)'%s': %.*s%s\r\e[%dC",yascreen_clearln_s(cli->s),sbuf,linelen,rcmd,endc,promptlen-3);
+	yascreen_write(cli->s,"",0);
 } // }}}
 
 static inline void yacli_prompt(yacli *cli) { // {{{
@@ -1133,6 +1138,7 @@ static inline void yacli_prompt(yacli *cli) { // {{{
 
 	yascreen_print(cli->s,"%s\r%s%s%s%c%.*s%s\r\e[%dC",yascreen_clearln_s(cli->s),cli->hostname,cli->modes?cli->modes:"",cli->level,begc,linelen,cli->buffer+cli->bufpos,endc,curpos);
 	cli->redraw=0;
+	yascreen_write(cli->s,"",0);
 } // }}}
 
 inline void yacli_message(yacli *cli,const char *line) { // {{{
@@ -1184,11 +1190,11 @@ inline int yacli_add_hist(yacli *cli,const char *buf) { // {{{
 	if (!cli)
 		return 0;
 
-	cli->hist_p=NULL;
+	cli->hst_p=NULL;
 
 	if (!strlen(buf)) // skip empty command
 		return 0;
-	if (cli->hist&&!strcmp(buf,cli->hist->prev->command)) // skip repeated command
+	if (cli->hst&&!strcmp(buf,cli->hst->prev->command)) // skip repeated command
 		return 0;
 
 	h=calloc(1,sizeof *h);
@@ -1202,13 +1208,13 @@ inline int yacli_add_hist(yacli *cli,const char *buf) { // {{{
 		return -1;
 	}
 
-	if (!cli->hist) {
-		cli->hist=h;
+	if (!cli->hst) {
+		cli->hst=h;
 		h->prev=h->next=h;
 	} else {
-		h->next=cli->hist;
-		h->prev=cli->hist->prev;
-		cli->hist->prev=h;
+		h->next=cli->hst;
+		h->prev=cli->hst->prev;
+		cli->hst->prev=h;
 		h->prev->next=h;
 	}
 	return 0;
@@ -1410,21 +1416,21 @@ static inline void yacli_up(yacli *cli) { // {{{
 	if (!cli)
 		return;
 
-	if (!cli->hist_p&&!cli->hist) // no history
+	if (!cli->hst_p&&!cli->hst) // no history
 		return;
-	if (!cli->hist_p) {
+	if (!cli->hst_p) {
 		yacli_buf_zeroterm(cli); // zero terminate the buffer
 		if (cli->savbuf) // free old saved buffer
 			free(cli->savbuf);
 		cli->savbuf=strdup(cli->buffer); // save current buffer
-		cli->hist_p=cli->hist; // start with last history command
-		cli->hist_p=cli->hist_p->prev;
-		yacli_setbuf(cli,cli->hist_p->command);
+		cli->hst_p=cli->hst; // start with last history command
+		cli->hst_p=cli->hst_p->prev;
+		yacli_setbuf(cli,cli->hst_p->command);
 	} else { // we are already somewhere in history
-		if (cli->hist_p==cli->hist) // limit history rollover
+		if (cli->hst_p==cli->hst) // limit history rollover
 			return;
-		cli->hist_p=cli->hist_p->prev;
-		yacli_setbuf(cli,cli->hist_p->command);
+		cli->hst_p=cli->hst_p->prev;
+		yacli_setbuf(cli,cli->hst_p->command);
 	}
 } // }}}
 
@@ -1432,17 +1438,17 @@ static inline void yacli_down(yacli *cli) { // {{{
 	if (!cli)
 		return;
 
-	if (!cli->hist_p) // do not allow history rollover
+	if (!cli->hst_p) // do not allow history rollover
 		return;
-	cli->hist_p=cli->hist_p->next;
-	if (cli->hist_p==cli->hist) { // restore previously saved command
-		cli->hist_p=NULL;
+	cli->hst_p=cli->hst_p->next;
+	if (cli->hst_p==cli->hst) { // restore previously saved command
+		cli->hst_p=NULL;
 		yacli_setbuf(cli,cli->savbuf);
 		free(cli->savbuf);
 		cli->savbuf=NULL;
 		return;
 	}
-	yacli_setbuf(cli,cli->hist_p->command);
+	yacli_setbuf(cli,cli->hst_p->command);
 } // }}}
 
 static inline void yacli_start_search(yacli *cli) { // {{{
@@ -1479,11 +1485,11 @@ static inline void yacli_find_first(yacli *cli,int skip) { // {{{
 	sl=cli->sbuf?strlen(cli->sbuf):0;
 
 	cli->rcmd=NULL;
-	if (cli->hist) { // find most recent matching command
+	if (cli->hst) { // find most recent matching command
 		int rpos=0;
 		history *h;
 
-		h=cli->hist->prev;
+		h=cli->hst->prev;
 		do {
 			if (sl&&strstr(h->command,cli->sbuf)) {
 				cli->rcmd=h->command; // save last found command
@@ -1497,7 +1503,7 @@ static inline void yacli_find_first(yacli *cli,int skip) { // {{{
 			}
 
 			h=h->prev;
-		} while (h!=cli->hist->prev);
+		} while (h!=cli->hst->prev);
 		rpos--;
 		if (cli->rcmd)
 			cli->rpos=rpos;
@@ -1601,7 +1607,8 @@ static inline void yacli_ctrl_c(yacli *cli) { // {{{
 		free(cli->savbuf);
 		cli->savbuf=NULL;
 	}
-	cli->hist_p=NULL; // reset history position
+	cli->hst_p=NULL; // reset history position
+	yascreen_puts(cli->s,"");
 } // }}}
 
 static inline void yacli_ctrl_d(yacli *cli) { // {{{
@@ -1613,6 +1620,7 @@ static inline void yacli_ctrl_d(yacli *cli) { // {{{
 	else {
 		yacli_eof(cli);
 		yascreen_puts(cli->s,"\r\n"); // keep consistent with command that caused exit, because enter prints new line
+		yascreen_write(cli->s,"",0);
 	}
 } // }}}
 
@@ -2550,7 +2558,8 @@ static inline void yacli_ctrl_z(yacli *cli) { // {{{
 		free(cli->savbuf);
 		cli->savbuf=NULL;
 	}
-	cli->hist_p=NULL; // reset history position
+	cli->hst_p=NULL; // reset history position
+	yascreen_write(cli->s,"",0);
 } // }}}
 
 inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
@@ -2643,14 +2652,14 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 				cli->redraw=1;
 				break;
 			} else if (key==YAS_K_C_H) { // Ctrl-X Ctrl-H dump history
-				history *h=cli->hist;
+				history *h=cli->hst;
 
 				yacli_print(cli,"%s\rHistory dump:\n",yascreen_clearln_s(cli->s));
 				if (h)
 					do {
 						yacli_print(cli,"%s\r\n",h->command);
 						h=h->next;
-					} while (h!=cli->hist);
+					} while (h!=cli->hst);
 				cli->redraw=1;
 				break;
 			} else if (key==YAS_K_C_Z) { // Ctrl-X Ctrl-Z show terminal size
@@ -2805,6 +2814,7 @@ inline void yacli_start(yacli *cli) { // {{{
 	if (cli->banner&&strlen(cli->banner)) {
 		yascreen_puts(cli->s,"  \b\b\r"); // dirty hack for secure crt bug
 		yascreen_puts(cli->s,cli->banner);
+		yascreen_write(cli->s,"",0);
 	}
 	cli->redraw=1;
 } // }}}
@@ -2840,8 +2850,8 @@ inline void yacli_free(yacli *cli) { // {{{
 	if (cli->moreprompt)
 		free(cli->moreprompt);
 
-	if (cli->hist) {
-		h=cli->hist;
+	if (cli->hst) {
+		h=cli->hst;
 		do {
 			history *t=h;
 
@@ -2849,7 +2859,7 @@ inline void yacli_free(yacli *cli) { // {{{
 
 			free(t->command);
 			free(t);
-		} while (h!=cli->hist);
+		} while (h!=cli->hst);
 	}
 	yacli_cmd_free(cli->cmdt);
 	yacli_free_parsed(cli);

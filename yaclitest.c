@@ -158,9 +158,9 @@ int main(void) {
 	// save current term and setup
 	yascreen_term_set(s,YAS_NOBUFF|YAS_NOSIGN|YAS_NOECHO);
 	yacli_set_banner(cli,"Some custom device message 1.0.3\n\n");
-	yacli_set_banner(cli,"\x1b[0;31mIP\x1b[1;30mACCT\x1b[0m \x1b[1;37mFlashOS\x1b[0m \x1b[1;30mRelease 6.28.65-x86_64-big\x1b[0m\n\n");
+	yacli_set_banner(cli,"\x1b[0;31mRed\x1b[1;32mGreen\x1b[0m \x1b[1;37mBanner\x1b[0m \x1b[1;30mRelease 1.2.3.4\x1b[0m\n\n");
 	yacli_set_level(cli,"#");
-	yacli_set_hostname(cli,"ipacct");
+	yacli_set_hostname(cli,"yascli-prompt");
 	yacli_set_more(cli,1); // more prompt
 	yacli_set_list_cb(cli,list_cb);
 
