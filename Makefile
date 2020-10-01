@@ -86,7 +86,7 @@ libyacli.so.$(SOVERM): libyacli.so.$(SOVERF)
 	ln -sf $^ $@
 
 libyacli.so.$(SOVERF): yacli.c yacli.h
-	$(CC) $(MYCFLAGS) -o $@ $< -fPIC -shared -Wl,--version-script,yacli.vers $(MYLDFLAGS)
+	$(CC) $(MYCFLAGS) -o $@ $< -fPIC -shared -Wl,--version-script,yacli.vers -Wl,-soname,libyacli.so.$(SOVERM) $(MYLDFLAGS)
 
 yacli.pc: yacli.pc.in
 	sed \
