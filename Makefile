@@ -2,48 +2,41 @@
 
 # configure install path
 
-PREFIX:=/usr/local
+PREFIX?=/usr/local
+LIBDIR?=/lib/
+INCDIR?=/include/
 
 # configure debug or release build
 
-DEBUG:=-DDEBUG=1 -O0 -g3 -fno-inline -fstack-protector-all
-# for debug build, comment the line below
-DEBUG:=-O3
+# for debug build, uncomment the line below
+#DEBUG?=-DDEBUG=1 -O0 -g3 -fno-inline -fstack-protector-all
+DEBUG?=-O3
 
 # configure default tools
 
-CC?=cc
 # make defines AR, so we have to override to gcc-ar, so -flto works
 AR=gcc-ar
-STRIP?=strip
 RANLIB?=gcc-ranlib
 
 ########################## end of configurable section #########################
 
-# shared library version
-
-SOVERM:=0
-SOVERF:=0.0.0
+VER=$(shell grep Revision yacli.c|head -n1|sed -e 's/.\+Revision: \([0-9.]\+\) \+.\+/\1/'|tr . ' '|awk '{printf "%i.%02u\n",$$1+$$2/100,$$2%100}')
 
 # change options based on wild guess of compiler brand/type
 
 ifeq ($(lastword $(subst /, ,$(CC))),tcc)
 CCOPT:=-Wall $(DEBUG) -I.
 STLINK:=-L. -static -lyascreen
-DYLINK:=-L. -lyacli -lyascreen
 else
 ifeq ($(lastword $(subst /, ,$(CC))),clang)
 CCOPT:=-Wall $(DEBUG) -I. --std=gnu89
 STLINK:=-L. -lyascreen
-DYLINK:=-L. -lyacli -lyascreen
 else
 CCOPT:=-Wall $(DEBUG) -I. --std=gnu89 -flto
 STLINK:=-L. -lyascreen
-DYLINK:=-L. -lyacli -lyascreen
 endif
 endif
 
-CP-A:=cp -a
 ifeq ($(shell uname -s),OpenBSD)
 ifeq ($(CC),cc)
 CC:=egcc
@@ -51,15 +44,19 @@ endif
 AR=ar
 RANLIB=ranlib
 CCOPT:=-Wall $(DEBUG) -I. --std=gnu89
-CP-A:=cp -fp
 endif
+
+# shared library version
+
+SOVERM:=0
+SOVERF:=0.0.0
 
 # allow to pass additional compiler flags
 
 MYCFLAGS=$(DEBUG) $(CPPFLAGS) $(CFLAGS) $(CCOPT)
 MYLDFLAGS=$(LDFLAGS) $(LDOPT)
 
-all: libyacli.a libyacli.so yaclitest yaclitest.shared
+all: libyacli.a libyacli.so yacli.pc
 
 yacli.o: yacli.c yacli.h
 	$(CC) $(MYCFLAGS) -o $@ -c $<
@@ -69,11 +66,6 @@ yaclitest.o: yaclitest.c yacli.h
 
 yaclitest: yaclitest.o yacli.o
 	$(CC) $(MYCFLAGS) -o $@ $^ $(STLINK)
-	$(STRIP) $@
-
-yaclitest.shared: yaclitest.o libyacli.so
-	$(CC) $(MYCFLAGS) -o $@ $< $(DYLINK)
-	$(STRIP) $@
 
 libyacli.a: yacli.o
 	$(AR) r $@ $^
@@ -87,17 +79,46 @@ libyacli.so.$(SOVERM): libyacli.so.$(SOVERF)
 
 libyacli.so.$(SOVERF): yacli.c yacli.h
 	$(CC) $(MYCFLAGS) -o $@ $< -fPIC -shared -Wl,--version-script,yacli.vers $(MYLDFLAGS) -lyascreen
-	$(STRIP) $@
 
-install: all
-	$(CP-A) libyacli.a libyacli.so libyacli.so.$(SOVERM) libyacli.so.$(SOVERF) $(PREFIX)/lib/
-	$(CP-A) yacli.h $(PREFIX)/include/
+yacli.pc: yacli.pc.in
+	sed \
+		-e 's|YACLIVERSION|$(VER)|' \
+		-e 's|YACLIPREFIX|$(PREFIX)|' \
+		-e 's|YACLILIBDIR|$(PREFIX)$(LIBDIR)|' \
+		-e 's|YACLIINCDIR|$(PREFIX)$(INCDIR)|' \
+	< $< > $@
+
+install: libyacli.a libyacli.so yacli.pc
+	$(INSTALL) -Ds -m 644 -t $(DESTDIR)$(PREFIX)$(LIBDIR) libyacli.a
+	$(INSTALL) -Ds -m 644 -t $(DESTDIR)$(PREFIX)$(LIBDIR)/pkgconfig/ yacli.pc
+	ln -fs libyacli.so.$(SOVERF) $(DESTDIR)$(PREFIX)$(LIBDIR)libyacli.so.$(SOVERM)
+	ln -fs libyacli.so.$(SOVERM) $(DESTDIR)$(PREFIX)$(LIBDIR)libyacli.so
+	$(INSTALL) -Ds -m 644 -s -t $(DESTDIR)$(PREFIX)$(LIBDIR) libyacli.so.$(SOVERF)
+	$(INSTALL) -Ds -m 644 -t $(DESTDIR)$(PREFIX)$(INCDIR) yacli.h
+	-#$(INSTALL) -TDs -m 0644 yacli.3 $(DESTDIR)$(PREFIX)/share/man/man3/yacli.3
 
 clean:
 	rm -f yaclitest yaclitest.shared yaclitest.o yacli.o libyacli.a libyacli.so libyacli.so.$(SOVERM) libyacli.so.$(SOVERF)
 
 rebuild:
 	$(MAKE) clean
-	$(MAKE) all
+	$(MAKE) -j all
+
+mkotar:
+	$(MAKE) clean
+	-dh_clean
+	#$(MAKE) yacli.3
+	tar \
+		--xform 's,^[.],yacli-$(VER),' \
+		--exclude ./.git \
+		--exclude ./.gitignore \
+		--exclude ./.cvsignore \
+		--exclude ./CVS \
+		--exclude ./debian \
+		-Jcvf ../yacli_$(VER).orig.tar.xz .
+	-rm -f ../yacli_$(VER).orig.tar.xz.asc
+	gpg -a --detach-sign ../yacli_$(VER).orig.tar.xz
+	cp -fa ../yacli_$(VER).orig.tar.xz ../yacli-$(VER).tar.xz
+	cp -fa ../yacli_$(VER).orig.tar.xz.asc ../yacli-$(VER).tar.xz.asc
 
 .PHONY: install clean rebuild all
