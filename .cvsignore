@@ -7,3 +7,4 @@ libyacli.so
 libyacli.so.*
 bin
 obj
+yacli.pc
