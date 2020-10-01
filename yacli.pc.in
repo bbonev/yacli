@@ -8,4 +8,4 @@ Description: Yet Another Command Line Interface Library
 Version: YACLIVERSION
 Requires: yascreen
 Cflags: -I${includedir}
-Libs: -L${libdir} -lyacli
+Libs: -L${libdir} -lyacli -lyascreen
