@@ -106,7 +106,7 @@ install: libyacli.a libyacli.so yacli.pc
 	-#$(INSTALL) -TDs -m 0644 yacli.3 $(DESTDIR)$(PREFIX)/share/man/man3/yacli.3
 
 clean:
-	rm -f yaclitest yaclitest.shared yaclitest.o yacli.o libyacli.a libyacli.so libyacli.so.$(SOVERM) libyacli.so.$(SOVERF)
+	rm -f yaclitest yaclitest.shared yaclitest.o yacli.o libyacli.a libyacli.so libyacli.so.$(SOVERM) libyacli.so.$(SOVERF) yacli.pc
 
 rebuild:
 	$(MAKE) clean
