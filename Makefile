@@ -12,6 +12,14 @@ INCDIR?=/include/
 #DEBUG?=-DDEBUG=1 -O0 -g3 -fno-inline -fstack-protector-all
 DEBUG?=-O3
 
+PKG_CONFIG?=pkg-config
+YASCC?=$(shell $(PKG_CONFIG) --cflags yascreen)
+YASLD?=$(shell $(PKG_CONFIG) --libs yascreen)
+ifeq ("$(YASLD)","")
+YASCC:=-lyascreen
+YASLD:=
+endif
+
 # configure default tools
 
 # make defines AR, so we have to override to gcc-ar, so -flto works
@@ -53,8 +61,8 @@ SOVERF:=0.0.0
 
 # allow to pass additional compiler flags
 
-MYCFLAGS=$(DEBUG) $(CPPFLAGS) $(CFLAGS) $(CCOPT)
-MYLDFLAGS=$(LDFLAGS) $(LDOPT)
+MYCFLAGS=$(DEBUG) $(CPPFLAGS) $(CFLAGS) $(YASCC) $(CCOPT)
+MYLDFLAGS=$(LDFLAGS) $(YASLD) $(LDOPT)
 
 all: libyacli.a libyacli.so yacli.pc
 
@@ -78,7 +86,7 @@ libyacli.so.$(SOVERM): libyacli.so.$(SOVERF)
 	ln -sf $^ $@
 
 libyacli.so.$(SOVERF): yacli.c yacli.h
-	$(CC) $(MYCFLAGS) -o $@ $< -fPIC -shared -Wl,--version-script,yacli.vers $(MYLDFLAGS) -lyascreen
+	$(CC) $(MYCFLAGS) -o $@ $< -fPIC -shared -Wl,--version-script,yacli.vers $(MYLDFLAGS)
 
 yacli.pc: yacli.pc.in
 	sed \
