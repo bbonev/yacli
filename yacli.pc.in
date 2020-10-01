@@ -1,0 +1,11 @@
+prefix=YACLIPREFIX
+exec_prefix=YACLIPREFIX
+libdir=YACLILIBDIR
+includedir=YACLIINCDIR
+
+Name: libyacli
+Description: Yet Another Command Line Interface Library
+Version: YACLIVERSION
+Requires: yascreen
+Cflags: -I${includedir}
+Libs: -L${libdir} -lyacli
