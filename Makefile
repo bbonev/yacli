@@ -5,6 +5,7 @@
 PREFIX?=/usr/local
 LIBDIR?=/lib/
 INCDIR?=/include/
+INSTALL?=install
 
 # configure debug or release build
 
@@ -98,11 +99,11 @@ yacli.pc: yacli.pc.in
 
 install: libyacli.a libyacli.so yacli.pc
 	$(INSTALL) -Ds -m 644 -t $(DESTDIR)$(PREFIX)$(LIBDIR) libyacli.a
-	$(INSTALL) -Ds -m 644 -t $(DESTDIR)$(PREFIX)$(LIBDIR)/pkgconfig/ yacli.pc
+	$(INSTALL) -D -m 644 -t $(DESTDIR)$(PREFIX)$(LIBDIR)/pkgconfig/ yacli.pc
 	ln -fs libyacli.so.$(SOVERF) $(DESTDIR)$(PREFIX)$(LIBDIR)libyacli.so.$(SOVERM)
 	ln -fs libyacli.so.$(SOVERM) $(DESTDIR)$(PREFIX)$(LIBDIR)libyacli.so
 	$(INSTALL) -Ds -m 644 -s -t $(DESTDIR)$(PREFIX)$(LIBDIR) libyacli.so.$(SOVERF)
-	$(INSTALL) -Ds -m 644 -t $(DESTDIR)$(PREFIX)$(INCDIR) yacli.h
+	$(INSTALL) -D -m 644 -t $(DESTDIR)$(PREFIX)$(INCDIR) yacli.h
 	-#$(INSTALL) -TDs -m 0644 yacli.3 $(DESTDIR)$(PREFIX)/share/man/man3/yacli.3
 
 clean:
