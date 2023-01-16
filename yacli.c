@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 4.4 2020/09/30 23:11:45 bbonev Exp $
+// $Id: yacli.c,v 4.5 2023/01/16 22:58:20 bbonev Exp $
 //
 // Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
 //
@@ -213,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.4 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.5 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -1653,6 +1653,12 @@ static inline void yacli_clear(yacli *cli) { // {{{
 	cli->redraw=1;
 } // }}}
 
+static inline int yacli_isprint(int key) { // {{{
+	if (key<0||key>255)
+		return 0;
+	return isprint(key);
+} // }}}
+
 static inline void debugstate(yacli_in_state os __attribute__((unused)),yacli_in_state ns __attribute__((unused)),unsigned char ch __attribute__((unused))) { // {{{
 #if DEBUG
 	char *ostate="?";
@@ -1686,7 +1692,7 @@ static inline void debugstate(yacli_in_state os __attribute__((unused)),yacli_in
 			nstate="IN_SEARCH";
 			break;
 	}
-	printf(" state %s(%02x[%c]) -> %s\n",ostate,ch,isprint(ch)?ch:' ',nstate);
+	printf(" state %s(%02x[%c]) -> %s\n",ostate,ch,yacli_isprint(ch)?ch:' ',nstate);
 #endif
 } // }}}
 
@@ -2593,7 +2599,7 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 					yacli_more_continue(cli);
 					break;
 				default:
-					if (isprint(key)) // ignore non-printing stuff
+					if (yacli_isprint(key)) // ignore non-printing stuff
 						yacli_more_line(cli);
 					break;
 			}
@@ -2632,7 +2638,7 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 					yacli_search_bsp(cli);
 					break;
 				default:
-					if (isprint(key)) // ignore non-printing stuff
+					if (yacli_isprint(key)) // ignore non-printing stuff
 						yacli_add_search(cli,key);
 					break;
 			}
@@ -2779,7 +2785,7 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 					yacli_moveleftw(cli);
 					break;
 				default:
-					if (isprint(key)) // ignore non-printing chars
+					if (yacli_isprint(key)) // ignore non-printing chars
 						yacli_insert(cli,key);
 					break;
 			}
