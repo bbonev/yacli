@@ -264,7 +264,7 @@ int main(void) {
 		FD_ZERO(&rfd);
 		FD_SET(STDIN_FILENO,&rfd);
 		key=yascreen_getch_nowait(s);
-		if (key!=-1) {
+		if (key!=YAS_K_NONE) {
 			rc=yacli_key(cli,key);
 			switch (rc) {
 				case YACLI_LOOP:
@@ -277,7 +277,7 @@ int main(void) {
 					goto done;
 			}
 		}
-		if (-1!=yascreen_peekch(s))
+		if (YAS_K_NONE!=yascreen_peekch(s))
 			sto.tv_usec=0;
 		if (-1==select(STDIN_FILENO+1,&rfd,NULL,NULL,&sto))
 			continue;
