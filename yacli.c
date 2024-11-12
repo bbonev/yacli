@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 4.7 2024/11/12 21:26:21 bbonev Exp $
+// $Id: yacli.c,v 4.8 2024/11/12 21:27:34 bbonev Exp $
 //
 // Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
 //
@@ -213,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.7 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.8 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -1889,10 +1889,11 @@ static inline void yacli_compact_spaces(yacli *cli) { // {{{
 	poss=0;
 
 	for (;;) {
-		while (cli->buffer[posd]==' '&&cli->buffer[poss]==' '&&poss<cli->buflen)
+		while (posd<cli->buflen&&cli->buffer[posd]==' '&&poss<cli->buflen&&cli->buffer[poss]==' ')
 			poss++;
 		if (poss!=posd) {
-			memmove(cli->buffer+posd,cli->buffer+poss,cli->buflen-poss);
+			if (cli->buflen>poss)
+				memmove(cli->buffer+posd,cli->buffer+poss,cli->buflen-poss);
 			cli->buflen-=poss-posd;
 			if (cli->cursor>=poss)
 				cli->cursor-=poss-posd;
