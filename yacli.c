@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 4.5 2023/01/16 22:58:20 bbonev Exp $
+// $Id: yacli.c,v 4.6 2024/11/12 21:23:41 bbonev Exp $
 //
 // Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
 //
@@ -213,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.5 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.6 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -729,6 +729,21 @@ static inline void yacli_free_parsed(yacli *cli) { // {{{
 	cli->parsedcmd=NULL;
 	cli->parsedcnt=0;
 	cli->parsedsiz=0;
+} // }}}
+
+static inline void yacli_free_flts(yacli *cli) { // {{{
+	if (!cli)
+		return;
+	while (cli->flts) {
+		filter *f=cli->flts;
+
+		cli->flts=cli->flts->next;
+		if (f->cmd)
+			free(f->cmd);
+		if (f->help)
+			free(f->help);
+		free(f);
+	}
 } // }}}
 
 static inline void yacli_clear_parsed(yacli *cli) { // {{{
@@ -2869,6 +2884,7 @@ inline void yacli_free(yacli *cli) { // {{{
 	}
 	yacli_cmd_free(cli->cmdt);
 	yacli_free_parsed(cli);
+	yacli_free_flts(cli);
 
 	free(cli);
 } // }}}
