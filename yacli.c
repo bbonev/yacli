@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 4.6 2024/11/12 21:23:41 bbonev Exp $
+// $Id: yacli.c,v 4.7 2024/11/12 21:26:21 bbonev Exp $
 //
 // Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
 //
@@ -213,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.6 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.7 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -1382,10 +1382,10 @@ static inline void yacli_delprevword(yacli *cli) { // {{{
 	if (!cli->cursor) // nothing to delete
 		return;
 
-	if (cli->buffer[cli->cursor-1]==' ')
+	if (cli->cursor>0&&cli->buffer[cli->cursor-1]==' ')
 		while (cli->buffer[cli->cursor-1]==' '&&cli->cursor)
 			yacli_bsp(cli);
-	while (cli->buffer[cli->cursor-1]!=' '&&cli->cursor)
+	while (cli->cursor&&cli->buffer[cli->cursor-1]!=' ')
 		yacli_bsp(cli);
 } // }}}
 
