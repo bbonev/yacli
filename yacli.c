@@ -1,4 +1,4 @@
-// $Id: yacli.c,v 4.8 2024/11/12 21:27:34 bbonev Exp $
+// $Id: yacli.c,v 4.11 2025/03/09 22:18:34 bbonev Exp $
 //
 // Copyright © 2015-2020 Boian Bonev (bbonev@ipacct.com) {{{
 //
@@ -213,7 +213,7 @@ inline void yacli_set_showtermsize(yacli *cli,int v) { // {{{
 	cli->showtsize=!!v;
 } // }}}
 
-static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.8 $\n\n"; // {{{
+static char myver[]="\0Yet another command line interface library (https://github.com/bbonev/yacli) $Revision: 4.11 $\n\n"; // {{{
 // }}}
 
 inline const char *yacli_ver(void) { // {{{
@@ -2436,7 +2436,7 @@ static inline void yacli_enter(yacli *cli) { // {{{
 	// bit 2: command is executable, but next is exact match and there is no space after it
 	// bit 7: used internally to redraw prompt after enter on empty line
 	// bit 8: (set above) no matched command
-	cmdok=yacli_trycomplete(cli,2);
+	cmdok=yacli_trycomplete(cli,2); // sets redraw in most cases
 	yacli_prompt(cli);
 	yacli_buf_zeroterm(cli);
 	yacli_add_hist(cli,cli->buffer);
@@ -2573,7 +2573,7 @@ static inline void yacli_ctrl_z(yacli *cli) { // {{{
 		yacli_exit_mode(cli);
 	}
 
-	if (!cli->ctrlzexeccmd) // yascli_enter already did redraw
+	if (!cli->ctrlzexeccmd) // yacli_enter already did redraw
 		cli->redraw=1;
 
 	if (cli->savbuf) { // kill last saved command
@@ -2813,10 +2813,9 @@ inline yacli_loop yacli_key(yacli *cli,int key) { // {{{
 			break;
 		case YAS_SCREEN_SIZE:
 			yascreen_getsize(cli->s,&cli->sx,&cli->sy);
-			if (cli->showtsize) {
+			if (cli->showtsize)
 				yacli_print(cli,"%s\rTerminal size: %dx%d\n",yascreen_clearln_s(cli->s),cli->sx,cli->sy);
-				cli->redraw=1;
-			}
+			cli->redraw=1; // always redraw on screen size event
 			break;
 	}
 	debugstate(os,cli->state,key);
@@ -3088,4 +3087,3 @@ inline const char *yacli_buf_get(yacli *cli) { // {{{
 	yacli_buf_zeroterm(cli); // zero terminate the buffer
 	return cli->buffer;
 } // }}}
-
